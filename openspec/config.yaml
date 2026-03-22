@@ -1,0 +1,68 @@
+# openspec/config.yaml
+# OpenSpec 项目配置 — LangChain ReAct 智能体
+
+schema: spec-driven
+
+context: |
+  domain:
+    description: "基于 LangChain 的 ReAct（Reasoning + Acting）智能体系统"
+    purpose: "通过 思考→行动→观察 的迭代循环，让 LLM 自主推理并调用工具解决复杂问题"
+
+  tech_stack:
+    language: "Python 3.11+"
+    framework: "LangChain (create_react_agent + AgentExecutor)"
+    llm_provider: "OpenAI ChatGPT (gpt-4o) / 可切换任意 ChatModel"
+    testing: "pytest + unittest.mock"
+    config: "python-dotenv + .env"
+    type_checking: "typing, Annotated"
+
+  architecture:
+    pattern: "模块化分层架构 — tools / prompt / agent / tests"
+    structure: |
+      react-agent/
+      ├── tools/              # 工具层：Agent 可调用的外部能力
+      │   ├── search.py       # Web 搜索工具
+      │   └── wikipedia.py    # 百科知识检索工具
+      ├── prompt/             # 提示词层：ReAct prompt 模板
+
+      │   └── react_prompt.py # ReAct 格式的 prompt（含中文支持）
+      ├── agent/              # 智能体层：Agent 构建与执行
+      │   ├── builder.py      # create_react_agent 构建器
+      │   └── executor.py     # AgentExecutor 封装与流式输出
+      ├── tests/              # 测试层
+      │   ├── __init__.py
+      │   ├── conftest.py     # 共享 fixtures
+      │   ├── test_tools.py   # 工具单元测试
+      │   ├── test_prompt.py  # Prompt 模板测试
+      │   └── test_agent.py   # Agent 构建与执行测试
+      ├── main.py             # 入口（文件 + 命令行参数）
+      ├── .env.example
+      └── requirements.txt
+
+    react_loop: |
+      ReAct 循环:
+        Question → Thought → Action → Action Input → Observation
+                      ↑                                    │
+                      └────────────────────────────────────┘
+        重复直到 → Final Answer
+
+  code_conventions:
+    style: "PEP 8"
+    naming: "函数 snake_case, 类 PascalCase, 常量 UPPER_SNAKE_CASE"
+    docstrings: "Google 风格"
+    error_handling: "所有 LLM / 工具调用包含 try/except"
+    tool_definition: "使用 @tool 装饰器，必须包含类型注解和 docstring"
+
+rules:
+  proposal:
+    - 必须说明新工具对 ReAct 推理链的影响
+    - 包含 Token 消耗估算
+  specs:
+    - 使用 Given/When/Then 格式
+    - 每个工具必须有输入输出类型签名
+  design:
+    - 包含 ReAct 循环的序列图
+    - 说明工具选择的决策逻辑
+  tasks:
+    - 每个任务必须可独立测试
+    - 标注是否需要外部 API 访问
