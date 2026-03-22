@@ -1,15 +1,15 @@
 ## MODIFIED Requirements
 
 ### Requirement: Agent 构建器
-系统 MUST 提供一个构建器函数，使用 LangChain 的 `create_react_agent` 初始化智能体。该构建器 SHALL 确保传入的 LLM 实例已正确配置，并使用新版的 `langchain.agents.create_react_agent` API。
+系统 MUST 提供一个构建器函数，使用 LangChain v1 标准的 `create_react_agent` 初始化智能体。该构建器 SHALL 确保传入的 LLM 实例已正确配置，且提示词模板包含所有必需的占位符。
 
-#### Scenario: 成功构建基于 Kimi 的智能体
-- **WHEN** 调用 `builder.create_agent(kimi_llm, tools, prompt)`
-- **THEN** 返回一个配置了 Kimi 模型且通过新版 `create_react_agent` 构建的智能体实例。
+#### Scenario: 成功构建标准 ReAct 智能体
+- **WHEN** 调用 `builder.create_agent(llm, tools, prompt)`
+- **THEN** 返回一个符合 LangChain v1 标准的智能体 Runnable 实例。
 
 ### Requirement: Agent 执行器封装
-系统 MUST 封装 `AgentExecutor` 以支持流式输出和错误处理（如解析错误）。
+系统 MUST 封装 `AgentExecutor` 以支持最新的 API 调用方式（如 `.invoke()`），并开启鲁棒的错误处理。
 
-#### Scenario: 成功执行智能体
-- **WHEN** 调用 `executor.run(agent, input)`
-- **THEN** 返回智能体的最终答案或处理后的流式输出。
+#### Scenario: 成功执行并处理解析错误
+- **WHEN** 调用 `executor.run_agent(executor, input_text)` 且 LLM 返回非标准格式
+- **THEN** 执行器 SHALL 能够捕获解析错误并尝试自我修复，最终返回有效输出。
