@@ -3,6 +3,7 @@ import sys
 import argparse
 from langchain_openai import ChatOpenAI
 from tools.search import search_tool
+from tools.es_search_tool import es_search_tool
 from prompt.prompt import get_react_prompt
 from agent.agent import create_agent, run_agent
 
@@ -47,7 +48,7 @@ def main():
         max_tokens=1024,    
     )
 
-    tools = [search_tool]
+    tools = [search_tool, es_search_tool]
     
     # 3. 获取提示词模板并构建智能体
     prompt = get_react_prompt()
