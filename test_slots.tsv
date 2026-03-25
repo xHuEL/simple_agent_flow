@@ -1,0 +1,6 @@
+用户姓名	user_name	string
+用户年龄	user_age	number
+用户地址	user_address	string
+用户邮箱	user_email	string
+是否VIP	is_vip	boolean
+注册日期	register_date	date
