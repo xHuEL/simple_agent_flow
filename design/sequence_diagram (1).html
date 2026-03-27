@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Content搜索排序时序图</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --bg: #0f1117;
+    --bg-surface: #181b24;
+    --border: rgba(255,255,255,0.06);
+    --border-accent: rgba(255,255,255,0.12);
+    --text-primary: #e8e9ed;
+    --text-secondary: #8b8fa3;
+    --text-muted: #5a5e72;
+    --blue: #4f8ff7;
+    --purple: #9b7aed;
+    --teal: #2ec4a0;
+    --coral: #f06a50;
+    --amber: #e5a33d;
+    --green: #49c76e;
+    --red: #ef5656;
+    --font: 'Noto Sans SC', -apple-system, sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+
+  .container { max-width: 960px; margin: 0 auto; }
+
+  .header { text-align: center; margin-bottom: 48px; }
+  .header h1 {
+    font-size: 28px; font-weight: 600; letter-spacing: -0.5px; margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--blue), var(--purple));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header p { font-size: 14px; color: var(--text-secondary); font-weight: 300; }
+
+  .diagram-svg { width: 100%; overflow-x: auto; }
+  .diagram-svg svg { display: block; margin: 0 auto; }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;
+    margin-top: 32px; padding: 16px; background: var(--bg-surface);
+    border-radius: 10px; border: 1px solid var(--border);
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+
+  /* ===== Step Explanations ===== */
+  .explanations { margin-top: 52px; }
+  .explain-title {
+    font-size: 20px; font-weight: 600; margin-bottom: 28px; text-align: center;
+    background: linear-gradient(135deg, var(--teal), var(--blue));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .phase-section { margin-bottom: 36px; }
+  .phase-label {
+    font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;
+    margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .phase-label .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  .step-row {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .step-row:last-child { border-bottom: none; }
+
+  .step-num {
+    width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; margin-top: 1px;
+  }
+
+  .step-info { flex: 1; min-width: 0; }
+  .step-label { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 3px; }
+  .step-desc { font-size: 12.5px; line-height: 1.75; color: var(--text-secondary); }
+
+  .step-tag {
+    font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; letter-spacing: 0.3px;
+  }
+
+  .alt-row {
+    margin: 8px 0; padding: 10px 14px; border-radius: 8px;
+    border: 1px dashed var(--border-accent); background: rgba(255,255,255,0.01);
+  }
+  .alt-row .alt-title {
+    font-size: 12px; font-weight: 600; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .alt-case {
+    display: flex; gap: 6px; align-items: baseline; font-size: 12px;
+    color: var(--text-secondary); line-height: 1.7; padding: 2px 0;
+  }
+  .alt-case .dot-icon { flex-shrink: 0; margin-top: 6px; }
+
+  /* ===== Future Plan ===== */
+  .future-plan { margin-top: 44px; }
+  .plan-title {
+    font-size: 20px; font-weight: 600; margin-bottom: 24px; text-align: center;
+    background: linear-gradient(135deg, var(--green), var(--teal));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .plan-card {
+    background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 18px 20px; margin-bottom: 12px;
+    transition: border-color 0.2s;
+  }
+  .plan-card:hover { border-color: var(--border-accent); }
+
+  .plan-header { display: flex; gap: 14px; align-items: flex-start; }
+  .plan-icon {
+    width: 36px; height: 36px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+    margin-top: 1px;
+  }
+
+  .plan-label { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .plan-desc { font-size: 12.5px; line-height: 1.8; color: var(--text-secondary); }
+
+  .plan-benefits { margin-top: 14px; padding-left: 50px; display: flex; flex-direction: column; gap: 10px; }
+  .benefit-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    font-size: 12.5px; line-height: 1.75; color: var(--text-secondary);
+  }
+  .benefit-item b { color: var(--text-primary); font-weight: 500; }
+  .benefit-dot {
+    width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 7px;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  .phase-section { animation: fadeIn 0.4s ease both; }
+  .phase-section:nth-child(2) { animation-delay: 0.15s; }
+  .phase-section:nth-child(3) { animation-delay: 0.3s; }
+
+  /* ===== Design Rationale ===== */
+  .rationale { margin-bottom: 44px; }
+  .rationale-title {
+    font-size: 20px; font-weight: 600; margin-bottom: 20px; text-align: center;
+    background: linear-gradient(135deg, var(--coral), var(--amber));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .rationale-body { display: flex; flex-direction: column; gap: 16px; }
+
+  .compare-cards { display: flex; gap: 14px; }
+  @media (max-width: 680px) { .compare-cards { flex-direction: column; } }
+
+  .compare-card {
+    flex: 1; padding: 16px; border-radius: 10px;
+    background: var(--bg-surface); border: 1px solid var(--border);
+  }
+  .compare-card.bad { border-color: rgba(239,86,86,0.15); }
+  .compare-card.good { border-color: rgba(73,199,110,0.15); }
+
+  .compare-header {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; margin-bottom: 14px;
+  }
+  .compare-header svg { flex-shrink: 0; }
+
+  .compare-timeline {
+    display: flex; gap: 2px; margin-bottom: 6px; height: 30px;
+  }
+  .compare-timeline.parallel { margin-top: 4px; margin-bottom: 10px; }
+
+  .tl-bar {
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 5px; padding: 0 6px; min-width: 0;
+    font-size: 10.5px; font-weight: 500; color: var(--text-secondary);
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+    overflow: hidden; white-space: nowrap;
+  }
+  .tl-bar span { overflow: hidden; text-overflow: ellipsis; }
+  .tl-bar.qa { background: rgba(79,143,247,0.1); border-color: rgba(79,143,247,0.2); color: var(--blue); }
+  .tl-bar.vec { background: rgba(239,86,86,0.08); border-color: rgba(239,86,86,0.18); }
+  .tl-bar.rest { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.06); }
+  .tl-bar.vec-async {
+    background: rgba(46,196,160,0.08); border-color: rgba(46,196,160,0.18);
+    color: var(--teal); border-style: dashed;
+  }
+
+  .compare-result {
+    font-size: 12px; line-height: 1.6; color: var(--text-secondary);
+    padding: 8px 10px; border-radius: 6px; margin-top: 4px;
+  }
+  .compare-result b { color: var(--text-primary); font-weight: 600; }
+  .bad-result { background: rgba(239,86,86,0.05); }
+  .good-result { background: rgba(73,199,110,0.05); }
+
+  .rationale-summary {
+    font-size: 13px; line-height: 1.8; color: var(--text-secondary);
+    padding: 14px 16px; border-radius: 8px; background: var(--bg-surface);
+    border: 1px solid var(--border); border-left: 3px solid var(--amber);
+  }
+  .rationale-summary b { color: var(--text-primary); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Content 搜索排序时序图</h1>
+    <p>Content 微服务 · MEP · DCS 缓存 · 向量模型 · CSS 检索</p>
+  </div>
+
+  <div class="diagram-svg">
+    <svg viewBox="0 0 900 1080" xmlns="http://www.w3.org/2000/svg" style="max-width:900px;width:100%">
+      <defs>
+        <marker id="ah-purple" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M1 1L8 4L1 7" fill="none" stroke="#9b7aed" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="ah-purple-l" viewBox="0 0 10 8" refX="1" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M9 1L2 4L9 7" fill="none" stroke="#9b7aed" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="ah-teal" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M1 1L8 4L1 7" fill="none" stroke="#2ec4a0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="ah-teal-l" viewBox="0 0 10 8" refX="1" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M9 1L2 4L9 7" fill="none" stroke="#2ec4a0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="ah-coral" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M1 1L8 4L1 7" fill="none" stroke="#f06a50" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="ah-coral-l" viewBox="0 0 10 8" refX="1" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M9 1L2 4L9 7" fill="none" stroke="#f06a50" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="ah-amber" viewBox="0 0 10 8" refX="9" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M1 1L8 4L1 7" fill="none" stroke="#e5a33d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+        <marker id="ah-amber-l" viewBox="0 0 10 8" refX="1" refY="4" markerWidth="8" markerHeight="7" orient="auto"><path d="M9 1L2 4L9 7" fill="none" stroke="#e5a33d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+      </defs>
+      <style>
+        text { font-family: 'Noto Sans SC', sans-serif; }
+        .t14 { font-size: 13px; fill: #e8e9ed; font-weight: 500; }
+        .t12 { font-size: 11.5px; fill: #8b8fa3; font-weight: 400; }
+        .t-phase { font-size: 12px; font-weight: 600; }
+        .t-alt { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; }
+      </style>
+
+      <!-- Participants -->
+      <rect x="55" y="16" width="100" height="36" rx="8" fill="rgba(79,143,247,0.12)" stroke="rgba(79,143,247,0.25)" stroke-width="0.8"/>
+      <text x="105" y="38" text-anchor="middle" class="t14" fill="#4f8ff7">Content</text>
+      <rect x="230" y="16" width="100" height="36" rx="8" fill="rgba(155,122,237,0.12)" stroke="rgba(155,122,237,0.25)" stroke-width="0.8"/>
+      <text x="280" y="38" text-anchor="middle" class="t14" fill="#9b7aed">MEP</text>
+      <rect x="430" y="16" width="100" height="36" rx="8" fill="rgba(46,196,160,0.12)" stroke="rgba(46,196,160,0.25)" stroke-width="0.8"/>
+      <text x="480" y="38" text-anchor="middle" class="t14" fill="#2ec4a0">DCS 缓存</text>
+      <rect x="620" y="16" width="100" height="36" rx="8" fill="rgba(240,106,80,0.12)" stroke="rgba(240,106,80,0.25)" stroke-width="0.8"/>
+      <text x="670" y="38" text-anchor="middle" class="t14" fill="#f06a50">向量模型</text>
+      <rect x="790" y="16" width="80" height="36" rx="8" fill="rgba(229,163,61,0.12)" stroke="rgba(229,163,61,0.25)" stroke-width="0.8"/>
+      <text x="830" y="38" text-anchor="middle" class="t14" fill="#e5a33d">CSS</text>
+
+      <!-- Lifelines -->
+      <line x1="105" y1="52" x2="105" y2="1060" stroke="rgba(79,143,247,0.15)" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="280" y1="52" x2="280" y2="1060" stroke="rgba(155,122,237,0.15)" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="480" y1="52" x2="480" y2="540" stroke="rgba(46,196,160,0.15)" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="670" y1="52" x2="670" y2="540" stroke="rgba(240,106,80,0.15)" stroke-width="1" stroke-dasharray="4 4"/>
+      <line x1="830" y1="52" x2="830" y2="1060" stroke="rgba(229,163,61,0.15)" stroke-width="1" stroke-dasharray="4 4"/>
+
+      <!-- Phase 1 -->
+      <rect x="20" y="70" width="860" height="462" rx="12" fill="rgba(155,122,237,0.03)" stroke="rgba(155,122,237,0.08)" stroke-width="0.8"/>
+      <text x="44" y="95" class="t-phase" fill="#9b7aed">阶段一：异步向量生成</text>
+
+      <text x="148" y="128" class="t12">① 异步调用（非阻塞）</text>
+      <line x1="105" y1="140" x2="272" y2="140" stroke="#9b7aed" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#ah-purple)"/>
+      <rect x="274" y="138" width="12" height="370" rx="3" fill="rgba(155,122,237,0.15)" stroke="rgba(155,122,237,0.2)" stroke-width="0.5"/>
+
+      <text x="148" y="170" class="t12">② 立即返回</text>
+      <line x1="274" y1="180" x2="113" y2="180" stroke="#9b7aed" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ah-purple-l)"/>
+
+      <text x="330" y="218" class="t12">③ 查询 Query 向量</text>
+      <line x1="286" y1="228" x2="472" y2="228" stroke="#2ec4a0" stroke-width="1.5" marker-end="url(#ah-teal)"/>
+
+      <text x="330" y="258" class="t12">④ 缓存命中 → 返回向量</text>
+      <line x1="472" y1="268" x2="290" y2="268" stroke="#2ec4a0" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ah-teal-l)"/>
+
+      <rect x="245" y="295" width="470" height="220" rx="8" fill="rgba(255,255,255,0.01)" stroke="rgba(255,255,255,0.1)" stroke-width="0.8" stroke-dasharray="5 3"/>
+      <rect x="253" y="300" width="38" height="18" rx="3" fill="rgba(239,86,86,0.12)"/>
+      <text x="272" y="313" text-anchor="middle" class="t-alt" fill="#ef5656">ALT</text>
+      <text x="300" y="313" class="t12" fill="#ef5656">缓存未命中</text>
+
+      <text x="380" y="348" class="t12">⑤ 调用向量模型生成 Query 向量</text>
+      <line x1="286" y1="358" x2="662" y2="358" stroke="#f06a50" stroke-width="1.5" marker-end="url(#ah-coral)"/>
+
+      <text x="380" y="395" class="t12">⑥ 返回 Query 向量</text>
+      <line x1="662" y1="405" x2="290" y2="405" stroke="#f06a50" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ah-coral-l)"/>
+
+      <text x="330" y="442" class="t12">⑦ 存储 Query 向量到 DCS</text>
+      <line x1="286" y1="452" x2="472" y2="452" stroke="#2ec4a0" stroke-width="1.5" marker-end="url(#ah-teal)"/>
+
+      <text x="350" y="482" class="t12">⑧ 存储成功</text>
+      <line x1="472" y1="492" x2="290" y2="492" stroke="#2ec4a0" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ah-teal-l)"/>
+
+      <!-- Phase 2 -->
+      <rect x="20" y="550" width="860" height="498" rx="12" fill="rgba(79,143,247,0.03)" stroke="rgba(79,143,247,0.08)" stroke-width="0.8"/>
+      <text x="44" y="575" class="t-phase" fill="#4f8ff7">阶段二：召回、合并与排序</text>
+      <rect x="99" y="590" width="12" height="440" rx="3" fill="rgba(79,143,247,0.12)" stroke="rgba(79,143,247,0.15)" stroke-width="0.5"/>
+
+      <text x="400" y="608" class="t12">⑨ 调用 CSS 进行召回</text>
+      <line x1="111" y1="618" x2="822" y2="618" stroke="#e5a33d" stroke-width="1.5" marker-end="url(#ah-amber)"/>
+
+      <text x="400" y="650" class="t12">⑩ 返回召回结果</text>
+      <line x1="822" y1="660" x2="115" y2="660" stroke="#e5a33d" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ah-amber-l)"/>
+
+      <text x="148" y="700" class="t12">⑪ 调用 MEP 合并（Merge）</text>
+      <line x1="111" y1="710" x2="272" y2="710" stroke="#9b7aed" stroke-width="1.5" marker-end="url(#ah-purple)"/>
+      <rect x="274" y="706" width="12" height="36" rx="3" fill="rgba(155,122,237,0.15)" stroke="rgba(155,122,237,0.2)" stroke-width="0.5"/>
+
+      <text x="148" y="742" class="t12">⑫ 返回合并结果</text>
+      <line x1="274" y1="738" x2="115" y2="738" stroke="#9b7aed" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ah-purple-l)"/>
+
+      <text x="148" y="782" class="t12">⑬ 调用 MEP 排序（Rank）</text>
+      <line x1="111" y1="792" x2="272" y2="792" stroke="#9b7aed" stroke-width="1.5" marker-end="url(#ah-purple)"/>
+      <rect x="274" y="788" width="12" height="190" rx="3" fill="rgba(155,122,237,0.15)" stroke="rgba(155,122,237,0.2)" stroke-width="0.5"/>
+
+      <!-- RED highlight: MEP needs modification -->
+      <rect x="130" y="768" width="410" height="260" rx="10" fill="rgba(239,86,86,0.04)" stroke="#ef5656" stroke-width="1.5" stroke-dasharray="6 3"/>
+      <rect x="440" y="758" width="108" height="20" rx="4" fill="#ef5656"/>
+      <text x="494" y="772" text-anchor="middle" style="font-size:10.5px;font-weight:700;fill:#fff;letter-spacing:0.3px">MEP 待改造</text>
+
+      <line x1="480" y1="815" x2="480" y2="930" stroke="rgba(46,196,160,0.15)" stroke-width="1" stroke-dasharray="4 4"/>
+      <text x="330" y="828" class="t12">⑭ 读取 Query 向量</text>
+      <line x1="286" y1="838" x2="472" y2="838" stroke="#2ec4a0" stroke-width="1.5" marker-end="url(#ah-teal)"/>
+
+      <rect x="295" y="860" width="220" height="100" rx="8" fill="rgba(255,255,255,0.01)" stroke="rgba(255,255,255,0.1)" stroke-width="0.8" stroke-dasharray="5 3"/>
+      <rect x="303" y="865" width="38" height="18" rx="3" fill="rgba(73,199,110,0.12)"/>
+      <text x="322" y="878" text-anchor="middle" class="t-alt" fill="#49c76e">ALT</text>
+      <text x="350" y="898" class="t12" fill="#49c76e">命中 → 使用 Query 向量作为排序特征</text>
+      <line x1="295" y1="915" x2="515" y2="915" stroke="rgba(255,255,255,0.1)" stroke-width="0.8" stroke-dasharray="4 3"/>
+      <text x="350" y="942" class="t12" fill="#e5a33d">未命中 → 不使用 Query 向量，继续排序</text>
+
+      <text x="148" y="1000" class="t12">⑮ 返回排序结果</text>
+      <line x1="274" y1="1010" x2="115" y2="1010" stroke="#9b7aed" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ah-purple-l)"/>
+    </svg>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item">
+      <svg width="28" height="12"><line x1="0" y1="6" x2="28" y2="6" stroke="#9b7aed" stroke-width="1.5"/></svg>
+      <span>同步调用</span>
+    </div>
+    <div class="legend-item">
+      <svg width="28" height="12"><line x1="0" y1="6" x2="28" y2="6" stroke="#9b7aed" stroke-width="1.5" stroke-dasharray="4 3"/></svg>
+      <span>异步调用 / 返回</span>
+    </div>
+    <div class="legend-item">
+      <svg width="10" height="14"><rect x="1" y="1" width="8" height="12" rx="2" fill="rgba(155,122,237,0.15)" stroke="rgba(155,122,237,0.3)" stroke-width="0.5"/></svg>
+      <span>激活条</span>
+    </div>
+    <div class="legend-item">
+      <svg width="28" height="16"><rect x="0" y="2" width="28" height="12" rx="3" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="0.8" stroke-dasharray="3 2"/></svg>
+      <span>条件分支（ALT）</span>
+    </div>
+  </div>
+
+  <!-- ===== Step Explanations ===== -->
+  <div class="explanations">
+
+    <!-- Design Rationale -->
+    <div class="rationale">
+      <h2 class="rationale-title">为什么采用异步方案？</h2>
+      <div class="rationale-body">
+        <div class="compare-cards">
+          <div class="compare-card bad">
+            <div class="compare-header">
+              <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="#ef5656" stroke-width="1.2"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#ef5656" stroke-width="1.2" stroke-linecap="round"/></svg>
+              <span>方案 A：同步调用向量模型</span>
+            </div>
+            <div class="compare-timeline">
+              <div class="tl-bar qa" style="width:16%"><span>QA 10ms</span></div>
+              <div class="tl-bar vec" style="width:50%;background:rgba(239,86,86,0.05);border-color:rgba(239,86,86,0.12)"><span style="color:var(--text-muted)">← QA 完成，等待向量返回 →</span></div>
+              <div class="tl-bar rest" style="width:34%"><span>后续流程</span></div>
+            </div>
+            <div class="compare-timeline parallel" style="margin-top:4px;margin-bottom:10px">
+              <div class="tl-bar" style="width:66%;background:rgba(239,86,86,0.12);border-color:rgba(239,86,86,0.25)"><span style="color:#ef5656">向量生成 50ms（与 QA 同时开始）</span></div>
+            </div>
+            <div class="compare-result bad-result">
+              QA 与向量并行，但 QA 需等待向量返回：实际耗时 = max(10, 50) = <b>50ms</b>，整体时延增加 <b style="color:#ef5656">+40ms</b>
+            </div>
+          </div>
+
+          <div class="compare-card good">
+            <div class="compare-header">
+              <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="#49c76e" stroke-width="1.2"/><path d="M5 8.2l2 2 4-4.4" fill="none" stroke="#49c76e" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span>方案 B：异步调用向量模型（当前方案）</span>
+            </div>
+            <div class="compare-timeline">
+              <div class="tl-bar qa" style="width:16%"><span>QA 10ms</span></div>
+              <div class="tl-bar rest" style="width:84%"><span>后续流程（召回 → 合并 → 排序）</span></div>
+            </div>
+            <div class="compare-timeline parallel">
+              <div class="tl-bar vec-async" style="width:50%"><span>向量生成 50ms（后台并行）</span></div>
+            </div>
+            <div class="compare-result good-result">
+              QA 阶段耗时 = <b>10ms</b>，向量生成与召回并行，整体时延 <b style="color:#49c76e">+0ms</b>
+            </div>
+          </div>
+        </div>
+        <div class="rationale-summary">
+          向量模型推理耗时约 <b>50ms</b>，而 QA 阶段本身仅需 <b>10ms</b>。方案 A 中虽然 QA 与向量生成并行执行，但 QA 需要同步等待向量返回才能继续，实际耗时取两者最大值 max(10, 50) = <b>50ms</b>，相比原本 10ms 增加了 40ms。方案 B 采用异步调用，QA 阶段发出请求后立即返回，不等待向量结果，向量在后台与后续召回流程并行完成。排序阶段读取时向量通常已就绪；即使未就绪也可优雅降级，不影响可用性。
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== Future Plan ===== -->
+    <div class="future-plan">
+      <h2 class="plan-title">后续优化计划</h2>
+
+      <div class="plan-card">
+        <div class="plan-header">
+          <div class="plan-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 2v6l4 2-4 2v6" fill="none" stroke="#9b7aed" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="4" cy="10" r="2.5" fill="none" stroke="#4f8ff7" stroke-width="1.2"/><circle cx="16" cy="10" r="2.5" fill="none" stroke="#f06a50" stroke-width="1.2"/></svg>
+          </div>
+          <div>
+            <div class="plan-label">Query 与 Item 推理 MEP 分离</div>
+            <div class="plan-desc">将 Query 向量推理和 Item 向量推理拆分到独立的 MEP 实例中，解耦两条推理链路。Query 推理为在线实时路径，对延迟敏感；Item 推理可离线/近线批量执行，对吞吐量敏感。分离后可针对各自特性独立扩缩容和调优，互不影响。两条链路共享同一个向量模型，保证 Query 向量与 Item 向量处于同一语义空间，相似度计算结果一致。此外，模型推理耗时与输入文本长度正相关，部分 Item 文本远长于 Query，混合推理时长文本 Item 会拉高整体延迟并抢占计算资源。拆分后 Query 推理实例只处理短文本，推理延迟更低更稳定；Item 推理实例独立承担长文本负载，避免相互干扰，进一步优化在线链路的响应时间。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-header">
+          <div class="plan-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20"><rect x="3" y="4" width="14" height="12" rx="2" fill="none" stroke="#2ec4a0" stroke-width="1.2"/><path d="M7 8h6M7 11h4" stroke="#2ec4a0" stroke-width="1" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div class="plan-label">模型转换为 ONNX 格式</div>
+            <div class="plan-desc">将向量模型从原始框架（PyTorch / TensorFlow）导出为 ONNX（Open Neural Network Exchange）格式。ONNX 是一种开放的跨框架模型表示标准，转换后具备以下优势：</div>
+          </div>
+        </div>
+        <div class="plan-benefits">
+          <div class="benefit-item">
+            <span class="benefit-dot" style="background:#4f8ff7"></span>
+            <div>
+              <b>跨平台兼容</b> — ONNX 解耦了训练框架与推理环境，同一模型可部署到 CPU、GPU、NPU 等不同硬件，无需针对每种平台重写推理代码。
+            </div>
+          </div>
+          <div class="benefit-item">
+            <span class="benefit-dot" style="background:#2ec4a0"></span>
+            <div>
+              <b>推理加速</b> — ONNX Runtime 自动执行算子融合、内存优化、常量折叠等图级优化，在不修改模型的情况下即可获得显著的推理性能提升。
+            </div>
+          </div>
+          <div class="benefit-item">
+            <span class="benefit-dot" style="background:#e5a33d"></span>
+            <div>
+              <b>NPU 适配前提</b> — 华为 Ascend NPU 等硬件加速器的工具链（如 ATC / MindSpore Lite）通常以 ONNX 作为输入格式，转换为 ONNX 是部署到 NPU 的必经步骤。
+            </div>
+          </div>
+          <div class="benefit-item">
+            <span class="benefit-dot" style="background:#9b7aed"></span>
+            <div>
+              <b>标准化与可维护</b> — 模型以统一格式存储和版本管理，降低团队间的框架依赖差异，简化模型上线和回滚流程。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-header">
+          <div class="plan-icon">
+            <svg width="20" height="20" viewBox="0 0 20 20"><path d="M3 14l4-8 4 5 3-4 3 7" fill="none" stroke="#f06a50" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><circle cx="14" cy="7" r="2.5" fill="none" stroke="#e5a33d" stroke-width="1.2"/></svg>
+          </div>
+          <div>
+            <div class="plan-label">NPU 硬件加速推理</div>
+            <div class="plan-desc">在 ONNX 转换基础上，进一步将模型部署到 NPU（Neural Processing Unit）。NPU 专为矩阵运算和张量计算设计，相比通用 CPU 在向量模型推理场景下可提供数倍的吞吐提升和更低的单次推理延迟，同时降低算力成本。最终目标是将向量生成延迟从当前的 50ms 压缩至 10ms 以内，为后续去除异步机制、实现全同步链路提供可能。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>
